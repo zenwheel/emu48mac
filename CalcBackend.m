@@ -96,8 +96,24 @@ CalcBackend *gSharedCalcBackend = nil;
         NSArray *pathComps = [[path stringByDeletingLastPathComponent] pathComponents];
         if ([pathComps count] < 2)
             path = [[[NSBundle mainBundle] resourcePath] stringByAppendingPathComponent: path];
+        // Keep the engine away from the old KML and LCD while they're replaced
+        UINT nOldState = SwitchToState(SM_INVALID);
+        [self ReleaseAllButtons];
         NSError *err = nil;
-        [state setKmlFile:path error:&err];
+        BOOL changed = [state setKmlFile:path error:&err];
+        if (changed && calcView && lcdClass)
+        {
+            // Pick up the new KML's keys, buttons, faceplate and LCD
+            [self finishInitWithViewContainer:[calcView window] lcdClass:lcdClass];
+            [calcView UpdateDisplayPointers];
+            [calcView UpdateMainDisplay];
+            [calcView UpdateMenuDisplay];
+            [calcView UpdateAnnunciators];
+        }
+        if (pbyRom)
+            SwitchToState(nOldState);
+        if (!changed && err)
+            [NSApp presentError: err];
     }
 }
 
@@ -335,6 +351,12 @@ CalcBackend *gSharedCalcBackend = nil;
 	uButtonClicked = 0;
 }
 
+// YES if the loaded KML defines a Scancode block for this virtual key
+- (BOOL)hasKey:(BYTE)nId
+{
+    return (NULL != pVKey && NULL != pVKey[nId]);
+}
+
 - (void)runKey:(BYTE)nId pressed:(BOOL)aPressed
 {
 	if (pVKey[nId])
@@ -496,6 +518,7 @@ CalcBackend *gSharedCalcBackend = nil;
                            lcdClass:(Class)aLcdClass
 {
     KmlParseResult *kml = [state kml];
+    lcdClass  = aLcdClass;
     pVKey     = [kml VKeys];
     pButton   = [kml buttons];
     nButtons  = [kml countOfButtons];

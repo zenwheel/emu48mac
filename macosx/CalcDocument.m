@@ -12,6 +12,23 @@
 #import "CalcBackend.h"
 #import "CalcView.h"
 #import "rawlcd.h"
+#import <objc/message.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+
+// Document types are reported as UTIs (from LSItemContentTypes) on modern macOS;
+// older systems used the CFBundleTypeName, so accept either.
+#define CALC_STATE_TYPE     @"com.dw.emu48-state"
+#define CALC_KML_TYPE       @"com.dw.emu48-kml"
+
+static BOOL CalcIsStateType(NSString *aType)
+{
+    return [aType isEqualToString: CALC_STATE_TYPE] || [aType isEqualToString: @"Emu48 State"];
+}
+
+static BOOL CalcIsKmlType(NSString *aType)
+{
+    return [aType isEqualToString: CALC_KML_TYPE] || [aType isEqualToString: @"KML File"];
+}
 
 
 @implementation CalcDocument
@@ -27,15 +44,15 @@
 
 - (IBAction)openObject:(id)sender
 {
-    int result;
+    NSModalResponse result;
     NSOpenPanel *panel = [NSOpenPanel openPanel];
     [panel setResolvesAliases: YES];
     [panel setAllowsMultipleSelection: NO];
-    result = [panel runModalForTypes: nil];
-    if (result == NSOKButton)
+    result = [panel runModal];
+    if (result == NSModalResponseOK)
     {
         NSError *err = nil;
-        if (![[CalcBackend sharedBackend] readFromObject:[panel filename] error:&err] && err)
+        if (![[CalcBackend sharedBackend] readFromObject:[[panel URL] path] error:&err] && err)
             [self presentError: err];
     }
 }
@@ -47,17 +64,17 @@
 
 - (IBAction)saveObject:(id)sender
 {
-    int result;
-    NSArray *types = [[NSDocumentController sharedDocumentController] fileExtensionsFromType: @"HP Stack Object"];
-    if (types && 0==[types count]) types = nil;
+    NSModalResponse result;
+    UTType *type = [UTType typeWithIdentifier: @"com.dw.emu48-stack"];
     NSSavePanel *panel = [NSSavePanel savePanel];
-    [panel setAllowedFileTypes: types];
+    if (type)
+        [panel setAllowedContentTypes: [NSArray arrayWithObject: type]];
     [panel setCanSelectHiddenExtension: YES];
     result = [panel runModal];
-    if (result == NSOKButton)
+    if (result == NSModalResponseOK)
     {
         NSError *err = nil;
-        if (![[CalcBackend sharedBackend] saveObjectAs:[panel filename] error:&err] && err)
+        if (![[CalcBackend sharedBackend] saveObjectAs:[[panel URL] path] error:&err] && err)
             [self presentError: err];
     }
 }
@@ -89,6 +106,8 @@
 - (void)windowControllerDidLoadNib:(NSWindowController *)controller
 {
     [super windowControllerDidLoadNib: controller];
+    // The emulator backend can't be rebuilt from window state; the ReloadFiles pref handles reopening
+    [[controller window] setRestorable: NO];
     CalcBackend *backend = [CalcBackend sharedBackend];
     [backend setCalcView: calcView];
     [backend finishInitWithViewContainer:[controller window]
@@ -97,10 +116,17 @@
     [self updateChangeCount: NSChangeDone];
 }
 
+// Decline window restoration (including state saved by earlier launches),
+// since the calculator would be restored without its KML or state loaded
+- (void)restoreDocumentWindowWithIdentifier:(NSUserInterfaceItemIdentifier)identifier state:(NSCoder *)state completionHandler:(void (^)(NSWindow *window, NSError *error))completionHandler
+{
+    completionHandler(nil, [NSError errorWithDomain:NSCocoaErrorDomain code:NSUserCancelledError userInfo:nil]);
+}
+
 - (BOOL)readFromURL:(NSURL *)absoluteURL ofType:(NSString *)aType error:(NSError **)outError
 {
     BOOL result = NO;
-    if ([aType isEqualToString: @"Emu48 State"])
+    if (CalcIsStateType(aType))
     {
         [[NSFileManager defaultManager] changeCurrentDirectoryPath: [[NSBundle mainBundle] bundlePath]];
         result = [[CalcBackend sharedBackend] readFromState:[absoluteURL path] error:outError];
@@ -115,7 +141,7 @@
         }
         return result;
     }
-    else if ([aType isEqualToString: @"KML File"])
+    else if (CalcIsKmlType(aType))
     {
         result = [[CalcBackend sharedBackend] makeUntitledCalcWithKml: [absoluteURL path] error:outError];
         if (result)
@@ -137,7 +163,7 @@
 - (BOOL)writeToURL:(NSURL *)absoluteURL ofType:(NSString *)aType error:(NSError **)outError
 {
     BOOL result = NO;
-    if ([aType isEqualToString: @"Emu48 State"])
+    if (CalcIsStateType(aType))
     {
         [[NSFileManager defaultManager] changeCurrentDirectoryPath: [[NSBundle mainBundle] bundlePath]];
         result = [[CalcBackend sharedBackend] saveStateAs:[absoluteURL path] error:outError];
@@ -147,12 +173,13 @@
     return [super writeToURL:absoluteURL ofType:aType error:outError];
 }
 
-- (BOOL)saveToURL:(NSURL *)absoluteURL ofType:(NSString *)aType forSaveOperation:(NSSaveOperationType)saveOperation error:(NSError **)outError
+- (void)saveToURL:(NSURL *)absoluteURL ofType:(NSString *)aType forSaveOperation:(NSSaveOperationType)saveOperation completionHandler:(void (^)(NSError *errorOrNil))completionHandler
 {
-    BOOL result = [super saveToURL:absoluteURL ofType:aType forSaveOperation:saveOperation error:outError];
-    if (result)
-        [self updateChangeCount: NSChangeDone];
-    return result;
+    [super saveToURL:absoluteURL ofType:aType forSaveOperation:saveOperation completionHandler:^(NSError *errorOrNil) {
+        if (nil == errorOrNil)
+            [self updateChangeCount: NSChangeDone];
+        completionHandler(errorOrNil);
+    }];
 }
 
 + (NSURL *)defaultFileURL
@@ -173,7 +200,7 @@
             {
                 parentPath = [parentPath stringByAppendingPathComponent: pathComp];
                 if (![fm fileExistsAtPath:parentPath isDirectory:&isFolder])
-                    [fm createDirectoryAtPath:parentPath attributes:nil];
+                    [fm createDirectoryAtPath:parentPath withIntermediateDirectories:NO attributes:nil error:NULL];
             }
         }
         else if (!isFolder)
@@ -194,8 +221,14 @@
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     if ([defaults boolForKey: @"AutoSaveOnExit"])
     {
-        BOOL shouldClose = YES;
-        NSError *err = nil;
+        void (^finish)(NSError *) = ^(NSError *err) {
+            BOOL shouldClose = (nil == err);
+            if (!shouldClose)
+                [self presentError: err];
+
+            if (delegate)
+                ((void (*)(id, SEL, id, BOOL, void *))objc_msgSend)(delegate, shouldCloseSelector, self, shouldClose, contextInfo);
+        };
         NSURL *saveURL = [self fileURL];
         if (nil == saveURL)
         {
@@ -203,19 +236,12 @@
         }
         if (nil == saveURL)
         {
-            err = [NSError errorWithDomain:NSCocoaErrorDomain code:NSFileWriteNoPermissionError userInfo:nil];
-            shouldClose = NO;
+            finish([NSError errorWithDomain:NSCocoaErrorDomain code:NSFileWriteNoPermissionError userInfo:nil]);
         }
         else
         {
-            shouldClose = [self saveToURL:saveURL ofType:@"Emu48 State" forSaveOperation:NSSaveOperation error:&err];
+            [self saveToURL:saveURL ofType:CALC_STATE_TYPE forSaveOperation:NSSaveOperation completionHandler:finish];
         }
-
-        if (!shouldClose)
-            [self presentError: err];
-
-        if (delegate)
-            objc_msgSend(delegate, shouldCloseSelector, self, shouldClose, contextInfo);
     }
     else
     {
@@ -231,14 +257,13 @@
 - (IBAction)newDocument:(id)sender
 {
     NSString *path = nil;
-    NSError *err = nil;
     if ([sender respondsToSelector: @selector(representedObject)])
     {
         path = [sender representedObject];
     }
     if (path)
     {
-        id doc = [self openDocumentWithContentsOfURL:[NSURL fileURLWithPath: path] display:YES error:&err];
+        [self openDocumentWithContentsOfURL:[NSURL fileURLWithPath: path] display:YES completionHandler:^(NSDocument *doc, BOOL alreadyOpen, NSError *err) {
         if (nil == doc && err)
         {
             NSMutableDictionary *userInfo = [NSMutableDictionary dictionary];
@@ -250,33 +275,30 @@
             NSError *untitledDocError = [NSError errorWithDomain:[err domain] code:[err code] userInfo:userInfo];
             [self presentError: untitledDocError];
         }
+        }];
     }
 }
 
-- (id)openDocumentWithContentsOfURL:(NSURL *)absoluteURL display:(BOOL)displayDocument error:(NSError **)aOutError
+- (void)openDocumentWithContentsOfURL:(NSURL *)absoluteURL display:(BOOL)displayDocument completionHandler:(void (^)(NSDocument *document, BOOL documentWasAlreadyOpen, NSError *error))completionHandler
 {
-    NSError *outError = nil;
-    id doc = [super openDocumentWithContentsOfURL:absoluteURL display:displayDocument error:&outError];
-    if (aOutError)
-        *aOutError = outError;
-
-    if (doc)
-    {
-        NSString *type = [doc fileType];
-        if ([type isEqualToString: @"KML File"])
+    [super openDocumentWithContentsOfURL:absoluteURL display:displayDocument completionHandler:^(NSDocument *doc, BOOL documentWasAlreadyOpen, NSError *error) {
+        if (doc)
         {
-            [doc setFileURL: nil];
-            [doc setFileModificationDate: nil];
+            NSString *type = [doc fileType];
+            if (CalcIsKmlType(type))
+            {
+                [doc setFileURL: nil];
+                [doc setFileModificationDate: nil];
+            }
         }
-    }
-
-    return doc;
+        completionHandler(doc, documentWasAlreadyOpen, error);
+    }];
 }
 
 - (void)noteNewRecentDocument:(NSDocument *)aDocument
 {
     NSString *type = [aDocument fileType];
-    if ([type isEqualToString: @"Emu48 State"])
+    if (CalcIsStateType(type))
     {
         [super noteNewRecentDocument: aDocument];
     }

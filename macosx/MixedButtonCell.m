@@ -33,13 +33,13 @@
     int state = [self state];
     switch (state)
     {
-        case NSOnState:
+        case NSControlStateValueOn:
             img = [self image];
             break;
-        case NSOffState:
+        case NSControlStateValueOff:
             img = [self alternateImage];
             break;
-        case NSMixedState:
+        case NSControlStateValueMixed:
             img = [self mixedImage];
             break;
         default:
@@ -56,12 +56,9 @@
         imageFrame.origin.x += 3;
         imageFrame.size = imageSize;
         
-        if ([controlView isFlipped])
-            imageFrame.origin.y += ceil((cellFrame.size.height + imageFrame.size.height) / 2);
-        else
-            imageFrame.origin.y += ceil((cellFrame.size.height - imageFrame.size.height) / 2);
+        imageFrame.origin.y += ceil((cellFrame.size.height - imageFrame.size.height) / 2);
         
-        [img compositeToPoint:imageFrame.origin operation:NSCompositeSourceOver];
+        [img drawInRect:imageFrame fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1.0 respectFlipped:YES hints:nil];
     }
 }
 @end

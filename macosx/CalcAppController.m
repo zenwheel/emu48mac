@@ -25,11 +25,10 @@ VOID UpdateWindowStatus(VOID){}
 
 - (IBAction)openROM:(id)sender
 {
-    int result;
     NSOpenPanel *oPanel = [NSOpenPanel openPanel];
     [oPanel setResolvesAliases: YES];
     [oPanel setAllowsMultipleSelection: NO];
-    result = [oPanel runModalForTypes: nil];
+    [oPanel runModal];
 }
 
 - (IBAction)showDebugger:(id)sender
@@ -150,12 +149,12 @@ VOID UpdateWindowStatus(VOID){}
             NSURL *path = [recentFiles objectAtIndex: 0];
             if (path)
             {
-                NSError *err = nil;
-                id doc = [dc openDocumentWithContentsOfURL:path display:YES error:&err];
-                if (nil == doc && err)
-                {
-                    [dc presentError: err];
-                }
+                [dc openDocumentWithContentsOfURL:path display:YES completionHandler:^(NSDocument *doc, BOOL alreadyOpen, NSError *err) {
+                    if (nil == doc && err)
+                    {
+                        [dc presentError: err];
+                    }
+                }];
             }
         }
     }
@@ -175,7 +174,6 @@ VOID UpdateWindowStatus(VOID){}
 - (void)populateNewCalcMenu
 {
     SEL newCalcAction = @selector(newDocument:);
-    [newCalcMenu setMenuChangedMessagesEnabled: NO];
     int i;
     int calcCount = [newCalcMenu numberOfItems];
     for (i = 0; i < calcCount; ++i)
@@ -224,13 +222,11 @@ VOID UpdateWindowStatus(VOID){}
         [newCalcMenu addItem: mi];
         [mi release];
     }
-    [newCalcMenu setMenuChangedMessagesEnabled: YES];
 }
 
 - (void)populateChangeKmlMenu
 {
     CalcBackend *backend = [CalcBackend sharedBackend];
-    [kmlMenu setMenuChangedMessagesEnabled: NO];
     int i;
     int kmlCount = [kmlMenu numberOfItems];
     for (i = 0; i < kmlCount; ++i)
@@ -262,7 +258,6 @@ VOID UpdateWindowStatus(VOID){}
         [kmlMenu addItem: mi];
         [mi release];
     }
-    [kmlMenu setMenuChangedMessagesEnabled: YES];
 }
 
 - (BOOL)validateMenuItem:(NSMenuItem *)sender

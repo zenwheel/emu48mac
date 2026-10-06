@@ -52,8 +52,8 @@
         [breakpoint setAddress: [NSNumber numberWithUnsignedInt: hexResult]];
         switch ([breakpointStatus intValue])
         {
-            case NSOnState:
-            case NSOffState:
+            case NSControlStateValueOn:
+            case NSControlStateValueOff:
                 break;
             default:
                 [breakpointController addBreakpoint: breakpoint];
@@ -118,10 +118,10 @@
             [breakpoint setAddress: [NSNumber numberWithUnsignedInt: hexResult]];
             switch ([breakpointStatus intValue])
             {
-                case NSOnState:
+                case NSControlStateValueOn:
                     [breakpointController addBreakpoint: breakpoint];
                     break;
-                case NSOffState:
+                case NSControlStateValueOff:
                     [breakpointController disableBreakpoint: breakpoint];
                     break;
                 default:
@@ -184,7 +184,7 @@
     {
         id enabled = [sel valueForKeyPath: @"enabled"];
         id address = [sel valueForKeyPath: @"address"];
-        if (NSNoSelectionMarker != enabled && address)
+        if ([NSBindingSelectionMarker noSelectionMarker] != enabled && address)
         {
             [[self debugModel] performSelectorOnMainThread:@selector(enableDebugger) withObject:nil waitUntilDone:NO];
 ;
@@ -292,10 +292,8 @@
 - (NSArray *)toolbarAllowedItemIdentifiers:(NSToolbar*)toolbar
 {
     NSMutableArray *idlist = [[NSMutableArray alloc] initWithArray:toolbarIdList];
-    [idlist addObject:NSToolbarSeparatorItemIdentifier];
     [idlist addObject:NSToolbarSpaceItemIdentifier];
     [idlist addObject:NSToolbarFlexibleSpaceItemIdentifier];
-    [idlist addObject:NSToolbarCustomizeToolbarItemIdentifier];
     [idlist autorelease];
     return idlist;
 }

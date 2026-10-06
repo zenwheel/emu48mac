@@ -107,10 +107,8 @@
 {
     return [NSArray arrayWithObjects:
             KML_LOG_CLEAR_ID,
-            NSToolbarCustomizeToolbarItemIdentifier,
             NSToolbarFlexibleSpaceItemIdentifier,
             NSToolbarSpaceItemIdentifier,
-            NSToolbarSeparatorItemIdentifier,
             nil];
 }
 

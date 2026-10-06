@@ -9,7 +9,7 @@
  *
  */
 #import "kmlparser.h"
-#ifndef TARGET_OS_IPHONE
+#if !TARGET_OS_IPHONE
 #import "KmlLogController.h"
 #import "CalcAppController.h"
 #endif
@@ -18,7 +18,7 @@
 #import "EMU48.H"
 
 
-#ifndef TARGET_OS_IPHONE
+#if !TARGET_OS_IPHONE
 #define LogController   [[NSApp delegate] kmlLogController]
 #endif
 
@@ -237,7 +237,7 @@ NSString *GetStringParam(KmlBlock* pBlock, TokenId eBlock, TokenId eCommand, UIN
 
 - (IBAction)DisplayKMLLog:(id)sender
 {
-#ifndef TARGET_OS_IPHONE
+#if !TARGET_OS_IPHONE
     KmlLogController *logController = LogController;
     BOOL showLog = [[NSUserDefaults standardUserDefaults]
                     boolForKey: @"AlwaysDisplayLog"];

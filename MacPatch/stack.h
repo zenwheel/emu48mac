@@ -37,4 +37,7 @@ extern NSString *Emu48ObjectPBoardType;
 - (BOOL)copyToPasteboard:(CalcPasteboard *)pb;
 - (BOOL)pasteFromPasteboard:(CalcPasteboard *)pb;
 #endif
+#if !TARGET_OS_IPHONE
+- (NSPasteboardItem *)pasteboardItem;
+#endif
 @end

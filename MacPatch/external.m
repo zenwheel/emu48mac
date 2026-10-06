@@ -11,7 +11,6 @@
 #import "external.h"
 #import "EMU48.H"
 #import "OPS.H"
-#import <OpenAL/alc.h>
 #if TARGET_OS_IPHONE
 #import <AudioToolbox/AudioToolbox.h>
 #endif
@@ -143,103 +142,77 @@ void AudioInterruptListener(void *inClientData, UInt32 inInterruptionState)
     self = [super init];
     if (self)
     {
-        ALenum      error;
-        ALCcontext *context = NULL;
-        ALCdevice  *device  = NULL;
-        BOOL        initialized = NO;
-
-        // System’s default output device
-        device = alcOpenDevice(NULL);
-        while (device)
-        {
-            context = alcCreateContext(device, 0);
-            if (context)
-            {
-                alcMakeContextCurrent(context);
-
-                alGenBuffers(1, &audioBuffer);
-                if((error = alGetError()) != AL_NO_ERROR)
-                {
-                    alcDestroyContext(context);
-                    alcCloseDevice(device);
-                    break;
-                }
-
-                alGenSources(1, &audioSource);
-                if(alGetError() != AL_NO_ERROR) 
-                {
-                    alDeleteBuffers(1, &audioBuffer);
-                    alcDestroyContext(context);
-                    alcCloseDevice(device);
-                    break;
-                }
-
-                initialized = YES;
-                break;
-            }
-        }
-        // clear any errors
-        alGetError();
-
-        if (initialized)
-        {
-            
-#if TARGET_OS_IPHONE
-            AudioSessionSetActive(true);
-#endif
-        }
-        else
+        audioEngine = [[AVAudioEngine alloc] init];
+        audioPlayer = [[AVAudioPlayerNode alloc] init];
+        audioFormat = [[AVAudioFormat alloc] initStandardFormatWithSampleRate:CALC_AUD_SAMPLE_RATE channels:1];
+        if (nil == audioEngine || nil == audioPlayer || nil == audioFormat)
         {
             [self release];
-            self = nil;
+            return nil;
         }
+        [audioEngine attachNode: audioPlayer];
+        [audioEngine connect:audioPlayer to:[audioEngine mainMixerNode] format:audioFormat];
+#if TARGET_OS_IPHONE
+        AudioSessionSetActive(true);
+#endif
     }
     return self;
 }
 
 - (void)dealloc
 {
-    ALCcontext *context = NULL;
-    ALCdevice  *device  = NULL;
-
 #if TARGET_OS_IPHONE
     AudioSessionSetActive(false);
 #endif
-    alDeleteSources(1, &audioSource);
-    alDeleteBuffers(1, &audioBuffer);
-    context = alcGetCurrentContext();
-    device  = alcGetContextsDevice(context);
-    alcDestroyContext(context);
-    alcCloseDevice(device);
+    [audioPlayer stop];
+    [audioEngine stop];
+    [audioPlayer release];
+    [audioEngine release];
+    [audioFormat release];
     [super dealloc];
 }
 
 - (void)playToneWithFrequency:(DWORD)freq duration:(DWORD)duration
 {
-    ALint L;          //lenth of sample
-    ALdouble F;       //frequency of sample
-    ALfloat volume;
-    ALshort *samples; //signed 16-bit
-    ALint T;          //time
+    AVAudioFrameCount L;    // length of sample
+    double F;               // frequency of sample
+    float volume;
+    float amplitude;
+    float *samples;
+    AVAudioFrameCount T;    // time
 
-    // generate square wave
-    L = CALC_AUD_SAMPLE_RATE*duration/1000;
-    samples = malloc(L * sizeof(ALshort));
+    L = (AVAudioFrameCount)(CALC_AUD_SAMPLE_RATE*(double)duration/1000);
+    if (0 == L)
+        return;
+
+    // start the engine lazily so the audio hardware is only claimed once a beep is needed
+    if (![audioEngine isRunning])
+    {
+        NSError *err = nil;
+        if (![audioEngine startAndReturnError: &err])
+            return;
+    }
+
+    AVAudioPCMBuffer *buffer = [[[AVAudioPCMBuffer alloc] initWithPCMFormat:audioFormat frameCapacity:L] autorelease];
+    if (nil == buffer)
+        return;
+    [buffer setFrameLength: L];
+
     volume = [[NSUserDefaults standardUserDefaults] floatForKey: @"WaveVolume"];
     if (volume < 0.f) volume = 0.f;
     if (volume > 1.f) volume = 1.f;
 
+    // generate square wave
+    samples   = [buffer floatChannelData][0];
+    amplitude = (float)CALC_AUD_MAX_AMPLITUDE/32768.f;
     F = 2.*freq/CALC_AUD_SAMPLE_RATE;
     for (T = 0; T < L; ++T)
-        samples[T] = ((ALshort)(F*T) & 1)*CALC_AUD_MAX_AMPLITUDE;
+        samples[T] = ((SInt16)(F*T) & 1)*amplitude;
 
-    alBufferData(audioBuffer, AL_FORMAT_MONO16, samples, L*sizeof(ALshort), CALC_AUD_SAMPLE_RATE);
-    free(samples);
-
-    alSourcef(audioSource,  AL_PITCH, 1.0f);
-    alSourcef(audioSource,  AL_GAIN,  volume);
-    alSourcei(audioSource,  AL_LOOPING, AL_FALSE);
-    alSourcei(audioSource,  AL_BUFFER,  audioBuffer);
-    alSourcePlay(audioSource);
+    [audioPlayer setVolume: volume];
+    // like alSourcePlay, a new tone replaces any tone still playing
+    [audioPlayer scheduleBuffer:buffer atTime:nil options:AVAudioPlayerNodeBufferInterrupts completionHandler:nil];
+    if (![audioPlayer isPlaying])
+        [audioPlayer play];
 }
 @end

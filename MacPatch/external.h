@@ -7,7 +7,7 @@
 //
 
 #import "pch.h"
-#import <OpenAL/al.h>
+#import <AVFoundation/AVFoundation.h>
 
 #define CALC_AUD_SAMPLE_RATE    11025
 // Maximum amplitude for 16bit
@@ -19,8 +19,9 @@ extern void AudioInterruptListener(void *inClientData, UInt32 inInterruptionStat
 
 @interface CalcToneGenerator : NSObject
 {
-    ALuint audioSource;
-    ALuint audioBuffer;
+    AVAudioEngine     *audioEngine;
+    AVAudioPlayerNode *audioPlayer;
+    AVAudioFormat     *audioFormat;
 }
 - (void)playToneWithFrequency:(DWORD)freq duration:(DWORD)duration;
 @end

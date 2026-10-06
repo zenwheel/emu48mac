@@ -11,6 +11,7 @@
 #import "IO.H"
 #import "files.h"
 #import "kmlparser.h"
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 30000
 #import <MobileCoreServices/MobileCoreServices.h>
 #endif
@@ -61,11 +62,10 @@
 
 + (NSDictionary *)cleanDefaults
 {
-    NSString *errorDesc = nil;
     NSPropertyListFormat format;
     NSString *plistPath = [[NSBundle mainBundle] pathForResource:@"defaults" ofType:@"plist"];
     NSData *plistData = [[NSFileManager defaultManager] contentsAtPath:plistPath];
-    NSDictionary *defaults = (NSDictionary *)[NSPropertyListSerialization propertyListFromData:plistData mutabilityOption:NSPropertyListImmutable format:&format errorDescription:&errorDesc];
+    NSDictionary *defaults = (NSDictionary *)[NSPropertyListSerialization propertyListWithData:plistData options:NSPropertyListImmutable format:&format error:NULL];
     return defaults;
 }
 
@@ -269,9 +269,10 @@ USERDEFAULTS_ACCESSOR_INT(WaveBeep)
         return nil;
     NSDirectoryEnumerator *dirEnum = [fm enumeratorAtPath: calcPath];
     NSString *kmlFile;
-    NSString *kmlExt = (NSString *)UTTypeCopyPreferredTagWithClass((CFStringRef)@"com.dw.emu48-kml", kUTTagClassFilenameExtension);
+    // Fall back to the plain extension if Launch Services hasn't registered our exported type yet
+    NSString *kmlExt = [[UTType typeWithIdentifier: @"com.dw.emu48-kml"] preferredFilenameExtension];
     if (nil==kmlExt)
-        return nil;
+        kmlExt = @"kml";
     KmlParser *parser = [[KmlParser alloc] init];
     result = [NSMutableArray array];
     while ((kmlFile = [dirEnum nextObject]))
@@ -306,7 +307,6 @@ USERDEFAULTS_ACCESSOR_INT(WaveBeep)
         [result addObject: calc];
     }
     [parser release];
-    [kmlExt release];
     return result;
 }
 
@@ -350,7 +350,7 @@ USERDEFAULTS_ACCESSOR_INT(WaveBeep)
             {
                 parentPath = [parentPath stringByAppendingPathComponent: pathComp];
                 if (![fm fileExistsAtPath:parentPath isDirectory:&isFolder])
-                    [fm createDirectoryAtPath:parentPath attributes:nil];
+                    [fm createDirectoryAtPath:parentPath withIntermediateDirectories:NO attributes:nil error:NULL];
             }
         }
         else if (!isFolder)

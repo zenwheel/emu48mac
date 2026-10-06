@@ -257,7 +257,7 @@ void SetTimer(void *, TimerType id, int msec, void *)
 int MessageBox(HANDLE h, LPCTSTR szMessage, LPCTSTR title, int flags)
 {
     int result = IDOK;
-#ifndef TARGET_OS_IPHONE
+#if !TARGET_OS_IPHONE
     NSAlert *alert = [[NSAlert alloc] init];
     [alert setMessageText: NSLocalizedString([NSString stringWithUTF8String: szMessage],@"")];
     if (0 != (flags & MB_OK))
@@ -277,9 +277,9 @@ int MessageBox(HANDLE h, LPCTSTR szMessage, LPCTSTR title, int flags)
     }
 
     if (0 != (flags & MB_ICONSTOP))
-        [alert setAlertStyle: NSCriticalAlertStyle];
+        [alert setAlertStyle: NSAlertStyleCritical];
     else if (0 != (flags & MB_ICONINFORMATION))
-        [alert setAlertStyle: NSInformationalAlertStyle];
+        [alert setAlertStyle: NSAlertStyleInformational];
 
     result = [alert runModal];
     [alert release];

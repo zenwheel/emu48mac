@@ -38,6 +38,7 @@
     UINT uButtonClicked;
     UINT uLastPressedKey;
     KmlButton *drawingButton;
+    Class lcdClass;
 
     BOOL initDone;
     BOOL isRunning;
@@ -66,6 +67,7 @@
 - (void)rightMouseDownAt:(CalcPoint)aPoint;
 - (void)mouseUpAt:(CalcPoint)aPoint;
 - (void)runKey:(BYTE)nId pressed:(BOOL)aPressed;
+- (BOOL)hasKey:(BYTE)nId;
 
 - (BOOL)ClipButton:(CalcPoint)aPoint forId:(unsigned)nId;
 - (void)DrawButton:(unsigned)nId;

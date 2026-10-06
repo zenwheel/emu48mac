@@ -24,20 +24,16 @@
 
 - (IBAction)prefBrowsePort2File:(id)sender
 {
-    int result;
-    // nil fileTypes => "all files"
-    NSArray *fileTypes = nil;
-    //[NSArray arrayWithObjects:NSFileTypeForHFSTypeCode('ERAM'), @"", nil];
+    NSModalResponse result;
     NSOpenPanel *oPanel = [NSOpenPanel openPanel];
     
     [oPanel setResolvesAliases: YES];
     [oPanel setAllowsMultipleSelection: NO];
-    result = [oPanel runModalForTypes: fileTypes];
+    result = [oPanel runModal];
     
-    if (result == NSOKButton)
+    if (result == NSModalResponseOK)
     {
-        NSArray *filesToOpen = [oPanel filenames];
-        NSString *aFile = [filesToOpen objectAtIndex:0];
+        NSString *aFile = [[oPanel URL] path];
         [[NSUserDefaults standardUserDefaults] setObject:aFile forKey:@"Port2Filename"];
     }
 }
@@ -57,16 +53,17 @@
     [panel setPrompt: NSLocalizedString(@"Make",@"")];
     [panel setMessage: NSLocalizedString(@"Note: Actual file size will be twice the chosen size.",@"")];
     [panel setAccessoryView: cardSizeView];
-    int result = [panel runModal];
-    if (result == NSOKButton)
+    NSModalResponse result = [panel runModal];
+    if (result == NSModalResponseOK)
     {
         int blockIndex = [cardSizePopup indexOfSelectedItem];
         if (blockIndex < 0 || blockIndex >= sizeof(BLOCK_SIZES))
             blockIndex = 0;
         int numBlocks = BLOCK_SIZES[blockIndex];
-        if (NewPort2([panel filename], numBlocks))
+        NSString *filename = [[panel URL] path];
+        if (NewPort2(filename, numBlocks))
         {
-            [[NSUserDefaults standardUserDefaults] setObject:[panel filename] forKey:@"Port2Filename"];
+            [[NSUserDefaults standardUserDefaults] setObject:filename forKey:@"Port2Filename"];
         }
     }
 }

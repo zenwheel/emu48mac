@@ -13,7 +13,7 @@
 #import "MacTypePatch.h"
 
 
-@interface CalcRawLCD : NSView <CalcLCD>
+@interface CalcRawLCD : NSView <CalcLCD, NSDraggingSource>
 {
     NSImage *img;
     float    lcdScale;

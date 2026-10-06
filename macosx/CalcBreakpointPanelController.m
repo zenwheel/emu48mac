@@ -54,7 +54,7 @@
     id sel = [breakpointController selection];
     id enabled = [sel valueForKeyPath: @"enabled"];
 
-    if (NSNoSelectionMarker != enabled && [enabled boolValue])
+    if ([NSBindingSelectionMarker noSelectionMarker] != enabled && [enabled boolValue])
     {
         [[NSApp delegate] performSelector:@selector(showDebugger:) withObject:nil];
         [[[CalcBackend sharedBackend] debugModel] performSelectorOnMainThread:@selector(enableDebugger) withObject:nil waitUntilDone:NO];

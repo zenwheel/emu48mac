@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 42;
+	objectVersion = 46;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -28,7 +28,8 @@
 		CEA7D7C50F64E39200FFFCB2 /* RPL.C in Sources */ = {isa = PBXBuildFile; fileRef = E588F48005E34BE300D6B3EC /* RPL.C */; };
 		CEA911360F809A0A0092B055 /* APPLE.C in Sources */ = {isa = PBXBuildFile; fileRef = CEA7D7F00F64EA3000FFFCB2 /* APPLE.C */; };
 		CEB14C350F7C7090006F561E /* files.m in Sources */ = {isa = PBXBuildFile; fileRef = CEB14C330F7C7090006F561E /* files.m */; };
-		CEB5EBDD103E190B0003C6B3 /* OpenAL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEB5EBDC103E190B0003C6B3 /* OpenAL.framework */; };
+		CEB5EBDD103E190B0003C6B3 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEB5EBDC103E190B0003C6B3 /* AVFoundation.framework */; };
+		CEB5EBDF103E190B0003C6B3 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEB5EBDE103E190B0003C6B3 /* UniformTypeIdentifiers.framework */; };
 		CEB8E6AF103F01A30023F4DB /* external.m in Sources */ = {isa = PBXBuildFile; fileRef = CEB8E6AE103F01A30023F4DB /* external.m */; };
 		CEC00D3D100E9DE900F21A1F /* stack.m in Sources */ = {isa = PBXBuildFile; fileRef = CEC00D3C100E9DE900F21A1F /* stack.m */; };
 		CEC0CE421060EDB40014CD3E /* breakpoints_disabled.tiff in Resources */ = {isa = PBXBuildFile; fileRef = CEC0CE401060EDB40014CD3E /* breakpoints_disabled.tiff */; };
@@ -78,6 +79,8 @@
 			isa = PBXBuildRule;
 			compilerSpec = com.apple.compilers.gcc;
 			fileType = sourcecode.c;
+			inputFiles = (
+			);
 			isEditable = 1;
 			outputFiles = (
 			);
@@ -105,7 +108,8 @@
 		CEA7D7F30F64EA3000FFFCB2 /* STACK.C */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.c; fileEncoding = 5; lineEnding = 0; path = STACK.C; sourceTree = "<group>"; };
 		CEB14C330F7C7090006F561E /* files.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = files.m; sourceTree = "<group>"; };
 		CEB14C340F7C7090006F561E /* files.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = files.h; sourceTree = "<group>"; };
-		CEB5EBDC103E190B0003C6B3 /* OpenAL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenAL.framework; path = System/Library/Frameworks/OpenAL.framework; sourceTree = SDKROOT; };
+		CEB5EBDC103E190B0003C6B3 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		CEB5EBDE103E190B0003C6B3 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
 		CEB8E6AD103F01A30023F4DB /* external.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = external.h; sourceTree = "<group>"; };
 		CEB8E6AE103F01A30023F4DB /* external.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = external.m; sourceTree = "<group>"; };
 		CEBB14600F8ADB9F00F72D81 /* clear_log.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = clear_log.tiff; sourceTree = "<group>"; };
@@ -206,7 +210,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				E5B21D2A0728F2370095F171 /* Cocoa.framework in Frameworks */,
-				CEB5EBDD103E190B0003C6B3 /* OpenAL.framework in Frameworks */,
+				CEB5EBDD103E190B0003C6B3 /* AVFoundation.framework in Frameworks */,
+				CEB5EBDF103E190B0003C6B3 /* UniformTypeIdentifiers.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -217,7 +222,8 @@
 			isa = PBXGroup;
 			children = (
 				1058C7A7FEA54F5311CA2CBB /* Cocoa.framework */,
-				CEB5EBDC103E190B0003C6B3 /* OpenAL.framework */,
+				CEB5EBDC103E190B0003C6B3 /* AVFoundation.framework */,
+				CEB5EBDE103E190B0003C6B3 /* UniformTypeIdentifiers.framework */,
 			);
 			name = "Linked Frameworks";
 			sourceTree = "<group>";
@@ -432,9 +438,23 @@
 /* Begin PBXProject section */
 		2A37F4A9FDCFA73011CA2CEA /* Project object */ = {
 			isa = PBXProject;
+			attributes = {
+				TargetAttributes = {
+					E5B21CF10728F2370095F171 = {
+						DevelopmentTeam = W774XGX423;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
 			buildConfigurationList = E526BA290F159EBF00BB73D6 /* Build configuration list for PBXProject "emu48" */;
-			compatibilityVersion = "Xcode 2.4";
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
 			hasScannedForEncodings = 1;
+			knownRegions = (
+				en,
+				Base,
+				English,
+			);
 			mainGroup = 2A37F4AAFDCFA73011CA2CEA /* emu48mac */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -604,10 +624,20 @@
 		E526BA260F159EBF00BB73D6 /* Development */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				AUTOMATION_APPLE_EVENTS = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = W774XGX423;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_ENABLE_FIX_AND_CONTINUE = YES;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREFIX_HEADER = macosx/emu48mac_Prefix.h;
@@ -618,8 +648,14 @@
 				);
 				INFOPLIST_FILE = macosx/Info.plist;
 				OTHER_LDFLAGS = "";
-				PREBINDING = NO;
 				PRODUCT_NAME = Emu48;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
 				SECTORDER_FLAGS = "";
 				WRAPPER_EXTENSION = app;
 			};
@@ -628,11 +664,19 @@
 		E526BA270F159EBF00BB73D6 /* Deployment */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = "$(ARCHS_STANDARD_32_BIT_PRE_XCODE_3_1)";
-				ARCHS_STANDARD_32_BIT_PRE_XCODE_3_1 = "ppc i386";
+				AUTOMATION_APPLE_EVENTS = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = YES;
 				DEPLOYMENT_POSTPROCESSING = YES;
-				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				DEVELOPMENT_TEAM = W774XGX423;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GCC_PREFIX_HEADER = macosx/emu48mac_Prefix.h;
 				GENERATE_PKGINFO_FILE = NO;
 				HEADER_SEARCH_PATHS = (
@@ -641,8 +685,14 @@
 				);
 				INFOPLIST_FILE = macosx/Info.plist;
 				OTHER_LDFLAGS = "";
-				PREBINDING = YES;
 				PRODUCT_NAME = Emu48;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
 				SECTORDER_FLAGS = "";
 				WRAPPER_EXTENSION = app;
 			};
@@ -651,7 +701,8 @@
 		E526BA2A0F159EBF00BB73D6 /* Development */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				SDKROOT = /Developer/SDKs/MacOSX10.4u.sdk;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				SDKROOT = macosx;
 			};
 			name = Development;
 		};
@@ -659,7 +710,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = NDEBUG;
-				SDKROOT = /Developer/SDKs/MacOSX10.4u.sdk;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				SDKROOT = macosx;
 			};
 			name = Deployment;
 		};

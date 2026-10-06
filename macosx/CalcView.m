@@ -86,7 +86,6 @@ VOID StopDisplayBW(VOID);
     if (img)
     {
         [img addRepresentation:rep];
-        [img setScalesWhenResized:YES];
         [img setSize:NSMakeSize([rep pixelsWide], [rep pixelsHigh])];
         [rep release];
     }
@@ -97,7 +96,7 @@ VOID StopDisplayBW(VOID);
 
 - (void)drawRect:(NSRect)aRect
 {
-    [mainBitmap drawAtPoint:mainBitmapOrigin fromRect:NSZeroRect operation:NSCompositeCopy fraction:1.0];
+    [mainBitmap drawAtPoint:mainBitmapOrigin fromRect:NSZeroRect operation:NSCompositingOperationCopy fraction:1.0];
 
     CalcImage *annunciator = mainBitmap;
     int i;
@@ -115,7 +114,7 @@ VOID StopDisplayBW(VOID);
                 annunSrcRect = annunciatorOff[i];
                 annunSrcRect.origin.y += ([mainBitmap size].height - [self bounds].size.height);
             }
-            [annunciator drawInRect:annunciatorOff[i] fromRect:annunSrcRect operation:NSCompositeCopy fraction:1.0];
+            [annunciator drawInRect:annunciatorOff[i] fromRect:annunSrcRect operation:NSCompositingOperationCopy fraction:1.0];
         }
     }
 
@@ -134,7 +133,7 @@ VOID StopDisplayBW(VOID);
             case 0: // bitmap key
                 if (drawingButtonPressed)
                 {
-                    [button drawInRect:displayButtonRect fromRect:srcButtonRectPressed operation:NSCompositeCopy fraction:1.0];
+                    [button drawInRect:displayButtonRect fromRect:srcButtonRectPressed operation:NSCompositingOperationCopy fraction:1.0];
                 }
                 break;
             case 1: // shift key to right down
@@ -150,7 +149,7 @@ VOID StopDisplayBW(VOID);
                     NSRect offsetRectDst = NSOffsetRect(displayButtonRect, 3., 2.);
                     offsetRectDst.size.width  -= 5.;
                     offsetRectDst.size.height -= 5.;
-                    [button drawInRect:offsetRectDst fromRect:offsetRectSrc operation:NSCompositeCopy fraction:1.0];
+                    [button drawInRect:offsetRectDst fromRect:offsetRectSrc operation:NSCompositingOperationCopy fraction:1.0];
                     [[NSColor blackColor] setStroke];
                     [NSBezierPath strokeLineFromPoint:NSMakePoint(x0, y0) toPoint:NSMakePoint(x1, y0)];
                     [NSBezierPath strokeLineFromPoint:NSMakePoint(x0, y0) toPoint:NSMakePoint(x0, y1)];
@@ -164,7 +163,7 @@ VOID StopDisplayBW(VOID);
             case 3: // invert key color, even in display
                 if (drawingButtonPressed)
                 {
-                    CGContextRef ctxt = [[NSGraphicsContext currentContext] graphicsPort];
+                    CGContextRef ctxt = [[NSGraphicsContext currentContext] CGContext];
                     CGContextSetBlendMode(ctxt, kCGBlendModeDifference);
                     CGContextSetGrayFillColor(ctxt, 1.0, 1.0);
                     CGContextFillRect(ctxt, *(CGRect *)&displayButtonRect);
@@ -524,39 +523,81 @@ VOID StopDisplayBW(VOID);
     return YES;
 }
 
+// KML Scancodes are Windows virtual-key codes, which identify physical keys.
+// Map Mac virtual key codes (kVK_* in HIToolbox/Events.h) to them; 0 = unmapped.
+static const BYTE MacKeyCodeToVK[128] =
+{
+    /* 0x00 A S D F H G Z X */  'A', 'S', 'D', 'F', 'H', 'G', 'Z', 'X',
+    /* 0x08 C V ISO B Q W E R */ 'C', 'V', 0,   'B', 'Q', 'W', 'E', 'R',
+    /* 0x10 Y T 1 2 3 4 6 5 */  'Y', 'T', '1', '2', '3', '4', '6', '5',
+    /* 0x18 = 9 7 - 8 0 ] O */  187, '9', '7', 189, '8', '0', 221, 'O',
+    /* 0x20 U [ I P Ret L J ' */ 'U', 219, 'I', 'P', 13,  'L', 'J', 222,
+    /* 0x28 K ; \ , / N M . */ 'K', 186, 220, 188, 191, 'N', 'M', 190,
+    /* 0x30 Tab Spc ` Del - Esc - - */ 9, 32, 192, 8,   0,   27,  0,   0,
+    /* 0x38 */                  0,   0,   0,   0,   0,   0,   0,   0,
+    /* 0x40 - KP. - KP* - KP+ - Clear */ 0, 110, 0, 106, 0, 107, 0, 144,
+    /* 0x48 - - - KP/ KPEnt - KP- - */ 0, 0,  0,   111, 13,  0,   109, 0,
+    /* 0x50 - KP= KP0 KP1 KP2 KP3 KP4 KP5 */ 0, 187, 96, 97, 98, 99, 100, 101,
+    /* 0x58 KP6 KP7 - KP8 KP9 - - - */ 102, 103, 0, 104, 105, 0, 0, 0,
+    /* 0x60 F5 F6 F7 F3 F8 F9 - F11 */ 116, 117, 118, 114, 119, 120, 0, 122,
+    /* 0x68 - - - - - F10 - F12 */ 0,   0,   0,   0,   0,   121, 0,   123,
+    /* 0x70 - - Help Home PgUp FwdDel F4 End */ 0, 0, 45, 36, 33, 46, 115, 35,
+    /* 0x78 F2 PgDn F1 Left Right Down Up - */ 113, 34, 112, 37, 39, 40, 38, 0,
+};
+
+// Virtual key sent for each Mac key while it is held, so the release matches
+// the press even if modifiers change in between
+static BYTE heldKeyVK[128];
+
 - (BOOL)keyEvent:(NSEvent *)theEvent pressed:(BOOL)aPressed
 {
-    NSString *chars = [theEvent characters];
-    unsigned modifiers = [theEvent modifierFlags];
-    if (0 == (modifiers & NSCommandKeyMask) && [chars length] > 0)
+    NSEventModifierFlags modifiers = [theEvent modifierFlags];
+    unsigned short keyCode = [theEvent keyCode];
+    if ((modifiers & NSEventModifierFlagCommand) || keyCode >= 128)
+        return NO;
+
+    CalcBackend *backend = [CalcBackend sharedBackend];
+    BYTE key;
+    if (aPressed)
     {
-        CalcBackend *backend = [CalcBackend sharedBackend];
-        unichar key = [chars characterAtIndex: 0];
-        switch (key)
+        key = MacKeyCodeToVK[keyCode];
+        NSString *chars = [theEvent characters];
+        unichar ch = ([chars length] > 0) ? [chars characterAtIndex: 0] : 0;
+        BYTE alt = 0;
+        switch (ch)
         {
-            case 127:
-            case NSDeleteFunctionKey:
-                key = 8;
-                break;
-            case NSLeftArrowFunctionKey:
-                key = 37;
-                break;
-            case NSUpArrowFunctionKey:
-                key = 38;
-                break;
-            case NSRightArrowFunctionKey:
-                key = 39;
-                break;
-            case NSDownArrowFunctionKey:
-                key = 40;
-                break;
+            // Arithmetic operators go to the numeric keypad keys (the only place most
+            // KMLs define them), however they were typed, e.g. shift-8 for *
+            case '+': alt = 107; break;     // VK_ADD
+            case '-': alt = 109; break;     // VK_SUBTRACT
+            case '*': alt = 106; break;     // VK_MULTIPLY
+            case '/': alt = 111; break;     // VK_DIVIDE
             default:
+                // otherwise only fall back to the keypad for keys the KML doesn't define
+                if (0 == key || ![backend hasKey: key])
+                {
+                    if (ch == '.') alt = 110;                                   // VK_DECIMAL
+                    else if (ch >= '0' && ch <= '9') alt = 96 + (ch - '0');     // VK_NUMPAD0-9
+                }
                 break;
         }
-        [backend runKey:key pressed:aPressed];
-        return YES;
+        if (alt && [backend hasKey: alt])
+            key = alt;
+        if (0 == key)
+            return NO;
+        if ([theEvent isARepeat] && heldKeyVK[keyCode] == key)
+            return YES;
+        heldKeyVK[keyCode] = key;
     }
-    return NO;
+    else
+    {
+        key = heldKeyVK[keyCode];
+        heldKeyVK[keyCode] = 0;
+        if (0 == key)
+            return NO;
+    }
+    [backend runKey:key pressed:aPressed];
+    return YES;
 }
 
 - (void)keyDown:(NSEvent *)theEvent
@@ -578,21 +619,21 @@ VOID StopDisplayBW(VOID);
 - (void)flagsChanged:(NSEvent *)theEvent
 {
     unsigned modifiers = [theEvent modifierFlags];
-    if (modifiers & NSCommandKeyMask)
+    if (modifiers & NSEventModifierFlagCommand)
     {
         [super flagsChanged: theEvent];
     }
     else
     {
         CalcBackend *backend = [CalcBackend sharedBackend];
-        if (modifiers & NSAlternateKeyMask)
+        if (modifiers & NSEventModifierFlagOption)
             [backend runKey:17 pressed:YES];
-        if (modifiers & NSControlKeyMask)
+        if (modifiers & NSEventModifierFlagControl)
             [backend runKey:16 pressed:YES];
         
-        if (0 == (modifiers & NSAlternateKeyMask))
+        if (0 == (modifiers & NSEventModifierFlagOption))
             [backend runKey:17 pressed:NO];
-        if (0 == (modifiers & NSControlKeyMask))
+        if (0 == (modifiers & NSEventModifierFlagControl))
             [backend runKey:16 pressed:NO];
     }
 }

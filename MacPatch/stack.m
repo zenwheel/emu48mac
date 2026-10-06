@@ -859,9 +859,9 @@ cancel:
 #if TARGET_OS_IPHONE
             kUTTypeUTF8PlainText,
 #else
-            NSStringPboardType,
-            NSFilenamesPboardType,
-            NSURLPboardType,
+            NSPasteboardTypeString,
+            NSPasteboardTypeFileURL,
+            NSPasteboardTypeURL,
             NSFileContentsPboardType,
 #endif
             nil];
@@ -897,7 +897,7 @@ cancel:
 #if TARGET_OS_IPHONE
          (NSString *)kUTTypeUTF8PlainText
 #else
-         NSStringPboardType
+         NSPasteboardTypeString
 #endif
         ];
     if ([types count] > 0)
@@ -912,13 +912,27 @@ cancel:
         if (objectRepresentation)
             [pb setData:objectRepresentation forType:Emu48ObjectPBoardType];
         if (stringRepresentation)
-            [pb setData:[stringRepresentation dataUsingEncoding: NSUTF8StringEncoding] forType:NSStringPboardType];
+            [pb setData:[stringRepresentation dataUsingEncoding: NSUTF8StringEncoding] forType:NSPasteboardTypeString];
 #endif
         result = YES;
     }
     [types release];
     return result;
 }
+
+#if !TARGET_OS_IPHONE
+- (NSPasteboardItem *)pasteboardItem
+{
+    if (nil == objectRepresentation && nil == stringRepresentation)
+        return nil;
+    NSPasteboardItem *item = [[[NSPasteboardItem alloc] init] autorelease];
+    if (objectRepresentation)
+        [item setData:objectRepresentation forType:Emu48ObjectPBoardType];
+    if (stringRepresentation)
+        [item setString:stringRepresentation forType:NSPasteboardTypeString];
+    return item;
+}
+#endif
 
 - (BOOL)pasteFromPasteboard:(CalcPasteboard *)pb
 {
@@ -929,11 +943,13 @@ cancel:
 #if !TARGET_OS_IPHONE
     NSArray *files = nil;
 
-    if ([type isEqualToString: NSFilenamesPboardType])
+    if ([type isEqualToString: NSPasteboardTypeFileURL])
     {
-        files = [pb propertyListForType: NSFilenamesPboardType];
+        NSArray *urls = [pb readObjectsForClasses:[NSArray arrayWithObject: [NSURL class]]
+                                          options:[NSDictionary dictionaryWithObject:[NSNumber numberWithBool: YES] forKey:NSPasteboardURLReadingFileURLsOnlyKey]];
+        files = [urls valueForKey: @"path"];
     }
-    else if ([type isEqualToString: NSURLPboardType])
+    else if ([type isEqualToString: NSPasteboardTypeURL])
     {
         NSURL *fileURL = [NSURL URLFromPasteboard: pb];
         if (fileURL)
@@ -950,7 +966,7 @@ cancel:
             }
             else if ([fileContents isSymbolicLink])
             {
-                files = [NSArray arrayWithObject: [fileContents symbolicLinkDestination]];
+                files = [NSArray arrayWithObject: [[fileContents symbolicLinkDestinationURL] path]];
             }
         }
     }
@@ -968,14 +984,14 @@ cancel:
 #if TARGET_OS_IPHONE
               (NSString *)kUTTypeUTF8PlainText
 #else
-              NSStringPboardType
+              NSPasteboardTypeString
 #endif
              ])
     {
 #if TARGET_OS_IPHONE
         str = pb.string;
 #else
-        str = [pb stringForType: NSStringPboardType];
+        str = [pb stringForType: NSPasteboardTypeString];
 #endif
     }
     else

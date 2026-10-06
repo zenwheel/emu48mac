@@ -25,6 +25,7 @@ extern CHIPSET Chipset;
 #define I 0xFFFFFFFF
 
 #define LCD_ROW		(36*4)					// max. pixel per line
+#define LCD_VISIBLE	131						// visible pixels per line; the rest of LCD_ROW is scratch
 
 #define GRAYMASK(c)	(((((c)-1)>>1)<<24) \
                     |((((c)-1)>>1)<<16) \
@@ -35,6 +36,7 @@ extern CHIPSET Chipset;
 
 
 @interface CalcRawLCD (Private)
+- (CGImageRef)copyLCDImage;
 - (void)BuildPattern;
 - (void)InitColors:(NSDictionary *)aColors;
 @end
@@ -54,7 +56,6 @@ extern CHIPSET Chipset;
         img = [[NSImage alloc] initWithSize: NSMakeSize([rep pixelsWide], [rep pixelsHigh])];
         if (img)
         {
-            [img setDataRetained: YES];
             [img addRepresentation: rep];
             [rep release];
         }
@@ -177,16 +178,36 @@ extern CHIPSET Chipset;
     return YES;
 }
 
+// NSImage caches its bitmap on first draw and won't see later writes to the
+// rep's buffer, so wrap the current pixels in a fresh CGImage each time
+- (CGImageRef)copyLCDImage
+{
+    NSBitmapImageRep *rep = (NSBitmapImageRep *)[[img representations] objectAtIndex: 0];
+    size_t bytesPerRow = (size_t)[rep bytesPerRow];
+    CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, lcd, bytesPerRow * SCREENHEIGHT, NULL);
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGImageRef image = CGImageCreate(LCD_VISIBLE, SCREENHEIGHT, 8, 32, bytesPerRow, colorSpace,
+                                     (CGBitmapInfo)kCGImageAlphaNoneSkipLast, provider, NULL, false, kCGRenderingIntentDefault);
+    CGColorSpaceRelease(colorSpace);
+    CGDataProviderRelease(provider);
+    return image;
+}
+
 - (void)drawRect:(NSRect)rect
 {
-    NSRect dstRect = rect;
-    rect.origin.x /= lcdScale;
-    rect.origin.y /= lcdScale;
-    rect.size.width  /= lcdScale;
-    rect.size.height /= lcdScale;
+    CGImageRef image = [self copyLCDImage];
+    if (NULL == image)
+        return;
+    CGContextRef ctxt = [[NSGraphicsContext currentContext] CGContext];
+    CGContextSaveGState(ctxt);
     // Real calculator doesn't do antialiasing so we don't either
-    [[NSGraphicsContext currentContext] setImageInterpolation: NSImageInterpolationNone];
-    [img drawInRect:dstRect fromRect:rect operation:NSCompositeCopy fraction:1.0];
+    CGContextSetInterpolationQuality(ctxt, kCGInterpolationNone);
+    CGContextSetBlendMode(ctxt, kCGBlendModeCopy);
+    // views don't clip to bounds by default on macOS 14+, so keep the LCD inside its frame
+    CGContextClipToRect(ctxt, NSRectToCGRect([self bounds]));
+    CGContextDrawImage(ctxt, CGRectMake(0., 0., LCD_VISIBLE*lcdScale, SCREENHEIGHT*lcdScale), image);
+    CGContextRestoreGState(ctxt);
+    CGImageRelease(image);
 }
 
 - (void)UpdateMain
@@ -440,36 +461,40 @@ extern CHIPSET Chipset;
 	if (y==y0) y++;
 }
 
-- (NSDragOperation)draggingSourceOperationMaskForLocal:(BOOL)isLocal
+- (NSDragOperation)draggingSession:(NSDraggingSession *)session sourceOperationMaskForDraggingContext:(NSDraggingContext)context
 {
     return NSDragOperationCopy;
 }
 
 - (void)mouseDragged:(NSEvent *)theEvent
 {
-    NSPasteboard *pb = [NSPasteboard pasteboardWithName: NSDragPboard];
     NSError *err = nil;
     CalcStack *stack = [[CalcStack alloc] initWithError: &err];
     if (nil == stack)
         return;
-    BOOL copied = [stack copyToPasteboard: pb];
+    NSPasteboardItem *pbItem = [[[stack pasteboardItem] retain] autorelease];
     [stack release];
-    if (!copied)
+    if (nil == pbItem)
         return;
 
     NSRect dragRect = NSZeroRect;
     NSRect srcRect;
     NSPoint dragPoint = [self convertPoint:[theEvent locationInWindow] fromView:nil];
-    dragRect.size = [img size];
+    dragRect.size = NSMakeSize(LCD_VISIBLE, SCREENHEIGHT);
     srcRect = dragRect;
     dragRect.size.width  *= lcdScale;
     dragRect.size.height *= lcdScale;
     dragPoint.x -= dragRect.size.width*0.5;
     dragPoint.y -= dragRect.size.height*0.5;
+    CGImageRef lcdImage = [self copyLCDImage];
+    NSImage *lcdSnapshot = [[[NSImage alloc] initWithCGImage:lcdImage size:NSMakeSize(LCD_VISIBLE, SCREENHEIGHT)] autorelease];
+    CGImageRelease(lcdImage);
     NSImage *dragImage = [[[NSImage alloc] initWithSize: dragRect.size]  autorelease];
     [dragImage lockFocus];
-    [img drawInRect:dragRect fromRect:srcRect operation:NSCompositeSourceOver fraction:0.5];
+    [lcdSnapshot drawInRect:dragRect fromRect:srcRect operation:NSCompositingOperationSourceOver fraction:0.5];
     [dragImage unlockFocus];
-    [self dragImage:dragImage at:dragPoint offset:NSZeroSize event:theEvent pasteboard:pb source:self slideBack:YES];
+    NSDraggingItem *dragItem = [[[NSDraggingItem alloc] initWithPasteboardWriter: pbItem] autorelease];
+    [dragItem setDraggingFrame:NSMakeRect(dragPoint.x, dragPoint.y, dragRect.size.width, dragRect.size.height) contents:dragImage];
+    [self beginDraggingSessionWithItems:[NSArray arrayWithObject: dragItem] event:theEvent source:self];
 }
 @end
